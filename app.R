@@ -6,7 +6,6 @@ library(lubridate)
 library(ggplot2)
 library(plotly)
 library(scales)
-library(gt)
 library(DT)
 library(shinycssloaders)
 library(bslib)
@@ -167,10 +166,10 @@ server <- function(input, output, session) {
   output$kpi_bar <- renderPlotly({
     p <- ggplot(top_plot_data, aes(x = date, y = Actual, fill = metric)) +
       geom_col(position = position_dodge()) +
-      geom_line(aes(y = Forecast, group = metric, color = metric),
-                linetype = "dotted", position = position_dodge(width = 0.9)) +
+      geom_line(aes(y = Forecast, color = metric, group = metric),
+                linetype = "dotted", size = 1) +
       scale_y_continuous(labels = comma) +
-      scale_x_date(date_labels = "%b", breaks = top_plot_data$date) +
+      scale_x_date(date_labels = "%b", breaks = unique(top_plot_data$date)) +
       labs(x = NULL, y = NULL, fill = NULL, color = NULL) +
       theme_minimal()
     ggplotly(p)
@@ -211,15 +210,12 @@ server <- function(input, output, session) {
   })
 
   output$expense_donut <- renderPlotly({
-    p <- ggplot() +
-      geom_col(data = donut_inner, aes(x = 1, y = value, fill = AccountType),
-               color = "white", width = 0.6) +
-      geom_col(data = donut_outer, aes(x = 1.3, y = value, fill = Description),
-               color = "white", width = 0.4) +
-      coord_polar(theta = "y") +
-      xlim(0.5, 1.9) +
-      theme_void()
-    ggplotly(p)
+    sb_data <- bind_rows(
+      donut_inner %>% transmute(labels = AccountType, parents = "", values = value),
+      donut_outer %>% transmute(labels = Description, parents = AccountType, values = value)
+    )
+    plot_ly(sb_data, labels = ~labels, parents = ~parents, values = ~values,
+            type = "sunburst", branchvalues = "total")
   })
 
   output$gl_forecast <- renderPlotly({
